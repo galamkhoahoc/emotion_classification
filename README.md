@@ -1,5 +1,7 @@
 # PhoBERT-Emoji v2
 
+**Phiên bản đồ án nhóm xây dựng pipeline và mô hình Emoji Weights ban đầu. Nhóm Gà làm khoa học (HCMUS) kế thừa hợp pháp phiên bản này và mở rộng phát triển nó trong các giai đoạn tiếp theo.**
+
 Dự án phân loại cảm xúc tiếng Việt sử dụng mô hình PhoBERT với hỗ trợ emoji.
 
 ##  Mô tả
@@ -104,4 +106,8 @@ Model đạt được hiệu suất tốt trên dataset UIT-VSMEC với khả n�
 2. UIT-VSMEC: A Vietnamese Social Media Emotion Corpus for Emotion Recognition
 3. Transformers: State-of-the-art Natural Language Processing (Hugging Face)
 
+## Liên hệ
 
+**Nhóm nghiên cứu Gà làm khoa học**<br>
+Khu đô thị Đại học Quốc gia, Phường Đông Hòa, TP.HCM<br>
+Email: galamkhoahoc@gmail.com
