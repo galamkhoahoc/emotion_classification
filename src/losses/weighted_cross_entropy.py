@@ -44,19 +44,27 @@ class WeightedCrossEntropyLoss(nn.Module):
         )
 
 
-def compute_class_weights(labels: torch.Tensor, num_classes: int) -> torch.Tensor:
+def compute_class_weights(labels, num_classes: Optional[int] = None) -> torch.Tensor:
     """
     Compute class weights for imbalanced dataset.
     
     Uses inverse frequency weighting: weight = total_samples / (num_classes * class_count)
     
     Args:
-        labels: Array of labels [num_samples]
-        num_classes: Number of classes
+        labels: Array or list of labels [num_samples]
+        num_classes: Number of classes (auto-detected if None)
     
     Returns:
         Class weights [num_classes]
     """
+    # Convert to tensor if needed
+    if not isinstance(labels, torch.Tensor):
+        labels = torch.tensor(labels)
+    
+    # Auto-detect num_classes if not provided
+    if num_classes is None:
+        num_classes = int(labels.max().item()) + 1
+    
     # Count samples per class
     class_counts = torch.bincount(labels, minlength=num_classes).float()
     

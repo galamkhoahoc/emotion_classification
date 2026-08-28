@@ -14,7 +14,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import Config
 from src.data.dataset import load_uit_vsmec_dataset, create_dataloaders
-from src.models.model_factory import create_model_from_checkpoint
+from src.models.model_factory import create_model_from_checkpoint, create_loss_function
+from src.losses.weighted_cross_entropy import compute_class_weights
 from src.utils.metrics import (
     compute_metrics,
     compute_confusion_matrix,

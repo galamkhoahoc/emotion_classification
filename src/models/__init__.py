@@ -6,7 +6,11 @@ Contains model architectures, factory, and emoji embedding utilities.
 from .base_classifier import BaseEmotionClassifier
 from .phobert_emotion import PhoBERTEmotionClassifier
 from .bamibert_emotion import BamiBERTEmotionClassifier
-from .model_factory import create_model, create_model_from_checkpoint
+from .model_factory import (
+    create_model,
+    create_model_from_checkpoint,
+    create_loss_function
+)
 from .emoji_embeddings import apply_emoji_embeddings
 
 __all__ = [
@@ -15,5 +19,6 @@ __all__ = [
     'BamiBERTEmotionClassifier',
     'create_model',
     'create_model_from_checkpoint',
+    'create_loss_function',
     'apply_emoji_embeddings'
 ]

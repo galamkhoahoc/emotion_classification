@@ -15,10 +15,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import Config
 from src.data.dataset import load_uit_vsmec_dataset, create_dataloaders
-from src.models.model_factory import create_model
+from src.models.model_factory import create_model, create_loss_function
 from src.models.emoji_embeddings import apply_emoji_embeddings, load_emoji_mapping_from_file
-from src.losses.focal_loss import FocalLoss
-from src.losses.weighted_cross_entropy import WeightedCrossEntropyLoss, compute_class_weights
+from src.losses.weighted_cross_entropy import compute_class_weights
 from src.utils.metrics import compute_metrics, get_predictions_from_logits
 from src.utils.logger import setup_logger, log_metrics, MetricsTracker
 
@@ -191,16 +190,28 @@ def main():
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     
-    # Create model and tokenizer via factory
-    logger.info(f"Creating model via factory: {config.model_type} ({config.model_name})")
-    model, tokenizer = create_model(config)
-    
     # Load dataset
     logger.info("Loading dataset...")
     train_data, val_data, test_data = load_uit_vsmec_dataset(
         dataset_name=config.dataset_name,
         cache_dir=config.cache_dir
     )
+    
+    # Compute class weights if using weighted cross entropy
+    class_weights = None
+    if config.loss_type == "weighted_ce":
+        logger.info("Computing class weights for weighted cross entropy...")
+        class_weights = compute_class_weights(train_data['labels'])
+        class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
+        logger.info(f"Class weights: {class_weights}")
+    
+    # Create loss function based on config
+    logger.info(f"Creating loss function: {config.loss_type}")
+    loss_fn = create_loss_function(config, class_weights=class_weights)
+    
+    # Create model and tokenizer via factory with custom loss function
+    logger.info(f"Creating model via factory: {config.model_type} ({config.model_name})")
+    model, tokenizer = create_model(config, loss_fn=loss_fn)
     
     # Create dataloaders
     logger.info("Creating dataloaders...")

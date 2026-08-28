@@ -34,7 +34,8 @@ class BamiBERTEmotionClassifier(BaseEmotionClassifier):
         model_name: str = "Qualcomm-AI-Research/BamiBERT",
         num_labels: int = 7,
         dropout_prob: float = 0.1,
-        hidden_size: int = 768
+        hidden_size: int = 768,
+        loss_fn: Optional[nn.Module] = None
     ):
         super().__init__(num_labels=num_labels)
         
@@ -47,6 +48,9 @@ class BamiBERTEmotionClassifier(BaseEmotionClassifier):
         # Classifier head
         self.dropout = nn.Dropout(dropout_prob)
         self.classifier = nn.Linear(hidden_size, num_labels)
+        
+        # Loss function (default to CrossEntropyLoss if not provided)
+        self.loss_fn = loss_fn if loss_fn is not None else nn.CrossEntropyLoss()
     
     def forward(
         self,
@@ -83,8 +87,7 @@ class BamiBERTEmotionClassifier(BaseEmotionClassifier):
         # Calculate loss if labels are provided
         loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            loss = self.loss_fn(logits.view(-1, self.num_labels), labels.view(-1))
         
         return {
             'loss': loss,

@@ -71,11 +71,41 @@ def load_uit_vsmec_dataset(
     
     Returns:
         Tuple of (train_data, val_data, test_data) dictionaries
+    
+    Raises:
+        ValueError: If dataset format is invalid or missing required splits/keys
+        RuntimeError: If dataset download fails
     """
     print(f"Loading dataset: {dataset_name}")
     
-    # Load dataset from HuggingFace
-    dataset = load_dataset(dataset_name, cache_dir=cache_dir)
+    try:
+        # Load dataset from HuggingFace
+        dataset = load_dataset(dataset_name, cache_dir=cache_dir)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load dataset '{dataset_name}'. "
+            f"Check your internet connection and dataset name. Error: {str(e)}"
+        ) from e
+    
+    # Validate required splits exist
+    required_splits = ['train', 'validation', 'test']
+    missing_splits = [split for split in required_splits if split not in dataset]
+    if missing_splits:
+        raise ValueError(
+            f"Dataset is missing required splits: {missing_splits}. "
+            f"Available splits: {list(dataset.keys())}"
+        )
+    
+    # Validate required keys exist in each split
+    required_keys = ['sentence', 'label']
+    for split_name in required_splits:
+        split_data = dataset[split_name]
+        missing_keys = [key for key in required_keys if key not in split_data.column_names]
+        if missing_keys:
+            raise ValueError(
+                f"Split '{split_name}' is missing required keys: {missing_keys}. "
+                f"Available keys: {split_data.column_names}"
+            )
     
     # Extract splits
     train_data = {
@@ -92,6 +122,22 @@ def load_uit_vsmec_dataset(
         'texts': dataset['test']['sentence'],
         'labels': dataset['test']['label']
     }
+    
+    # Validate data integrity
+    for split_name, split_data in [('train', train_data), ('validation', val_data), ('test', test_data)]:
+        # Check for empty texts
+        empty_count = sum(1 for text in split_data['texts'] if not text or not text.strip())
+        if empty_count > 0:
+            print(f"Warning: {split_name} split has {empty_count} empty texts")
+        
+        # Check label range
+        labels = split_data['labels']
+        if labels:
+            min_label = min(labels)
+            max_label = max(labels)
+            if min_label < 0:
+                raise ValueError(f"Invalid labels in {split_name} split: found negative label {min_label}")
+            print(f"{split_name.capitalize()} label range: [{min_label}, {max_label}]")
     
     print(f"Train size: {len(train_data['texts'])}")
     print(f"Validation size: {len(val_data['texts'])}")
@@ -186,13 +232,43 @@ def preprocess_text(text: str, use_segmentation: bool = False) -> str:
     
     Returns:
         Preprocessed text
+    
+    Note:
+        Word segmentation with VnCoreNLP is recommended for PhoBERT
+        but requires VnCoreNLP to be installed and configured.
+        For BamiBERT, word segmentation is not required.
     """
     # Basic preprocessing
     text = text.strip()
     
-    # TODO: Add VnCoreNLP word segmentation if needed
+    # Normalize whitespace
+    text = ' '.join(text.split())
+    
+    # Word segmentation using VnCoreNLP (if enabled and available)
     if use_segmentation:
-        # This requires VnCoreNLP to be set up
-        pass
+        try:
+            # VnCoreNLP integration would go here
+            # This requires vncorenlp to be installed:
+            # pip install vncorenlp
+            # And VnCoreNLP-1.1.1.jar to be downloaded
+            # 
+            # Example usage:
+            # from vncorenlp import VnCoreNLP
+            # annotator = VnCoreNLP("VnCoreNLP/VnCoreNLP-1.1.1.jar", annotators="wseg")
+            # sentences = annotator.tokenize(text)
+            # text = ' '.join([' '.join(sent) for sent in sentences])
+            
+            # For now, just log a warning
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Word segmentation requested but VnCoreNLP is not configured. "
+                "Returning text without segmentation. "
+                "To use word segmentation, install vncorenlp and configure vncorenlp_path in config."
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in word segmentation: {e}. Returning unsegmented text.")
     
     return text

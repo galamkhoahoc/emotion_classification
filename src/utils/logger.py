@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, Optional
 from datetime import datetime
 import json
+import numpy as np
 
 
 def setup_logger(

@@ -7,18 +7,60 @@ with their corresponding tokenizers.
 """
 
 import torch
+import torch.nn as nn
 from transformers import AutoTokenizer
-from typing import Tuple
+from typing import Tuple, Optional
 import logging
 
 from src.models.base_classifier import BaseEmotionClassifier
 from src.models.phobert_emotion import PhoBERTEmotionClassifier
 from src.models.bamibert_emotion import BamiBERTEmotionClassifier
+from src.losses.focal_loss import FocalLoss
+from src.losses.weighted_cross_entropy import WeightedCrossEntropyLoss, compute_class_weights
 
 logger = logging.getLogger(__name__)
 
 
-def create_model(config) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
+def create_loss_function(config, class_weights: Optional[torch.Tensor] = None) -> nn.Module:
+    """
+    Create loss function based on configuration.
+    
+    Args:
+        config: Configuration object with loss_type, focal_loss_alpha, focal_loss_gamma
+        class_weights: Optional class weights tensor for weighted cross entropy
+    
+    Returns:
+        Loss function module
+    
+    Raises:
+        ValueError: If loss_type is invalid
+    """
+    loss_type = config.loss_type.lower()
+    
+    logger.info(f"Creating loss function: {loss_type}")
+    
+    if loss_type == "cross_entropy":
+        loss_fn = nn.CrossEntropyLoss()
+    elif loss_type == "focal_loss":
+        alpha = config.focal_loss_alpha
+        gamma = config.focal_loss_gamma
+        loss_fn = FocalLoss(alpha=alpha, gamma=gamma)
+        logger.info(f"FocalLoss with alpha={alpha}, gamma={gamma}")
+    elif loss_type == "weighted_ce":
+        if class_weights is None:
+            logger.warning("weighted_ce selected but no class_weights provided, using uniform weights")
+        loss_fn = WeightedCrossEntropyLoss(weights=class_weights)
+        logger.info(f"WeightedCrossEntropyLoss with weights: {class_weights}")
+    else:
+        raise ValueError(
+            f"Invalid loss_type: '{loss_type}'. "
+            f"Must be 'cross_entropy', 'focal_loss', or 'weighted_ce'"
+        )
+    
+    return loss_fn
+
+
+def create_model(config, loss_fn: Optional[nn.Module] = None) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
     """
     Factory function to create emotion classifier and tokenizer.
     
@@ -28,6 +70,7 @@ def create_model(config) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
     Args:
         config: Configuration object with model_type, model_name, num_labels,
             and optional dropout_prob and hidden_size attributes.
+        loss_fn: Optional custom loss function. If None, uses CrossEntropyLoss.
     
     Returns:
         Tuple of (model, tokenizer) where model is a BaseEmotionClassifier
@@ -52,14 +95,16 @@ def create_model(config) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
                 model_name=config.model_name,
                 num_labels=config.num_labels,
                 dropout_prob=getattr(config, 'dropout_prob', 0.1),
-                hidden_size=getattr(config, 'hidden_size', 768)
+                hidden_size=getattr(config, 'hidden_size', 768),
+                loss_fn=loss_fn
             )
         elif model_type == "bamibert":
             model = BamiBERTEmotionClassifier(
                 model_name=config.model_name,
                 num_labels=config.num_labels,
                 dropout_prob=getattr(config, 'dropout_prob', 0.1),
-                hidden_size=getattr(config, 'hidden_size', 768)
+                hidden_size=getattr(config, 'hidden_size', 768),
+                loss_fn=loss_fn
             )
         else:
             raise ValueError(
@@ -73,6 +118,13 @@ def create_model(config) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
     except ValueError:
         # Re-raise ValueError without wrapping in RuntimeError
         raise
+    except OSError as e:
+        # Network errors, file not found, corrupted cache
+        logger.error(f"Failed to download or load model {config.model_name}: {str(e)}")
+        raise RuntimeError(
+            f"Model download/load failed for {config.model_name}. "
+            f"Check your internet connection and model name. Error: {str(e)}"
+        ) from e
     except Exception as e:
         logger.error(f"Failed to create model {config.model_name}: {str(e)}")
         raise RuntimeError(
@@ -82,7 +134,8 @@ def create_model(config) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
 
 def create_model_from_checkpoint(
     checkpoint_path: str,
-    config
+    config,
+    loss_fn: Optional[nn.Module] = None
 ) -> Tuple[BaseEmotionClassifier, AutoTokenizer]:
     """
     Create model and load weights from checkpoint.
@@ -95,6 +148,7 @@ def create_model_from_checkpoint(
     Args:
         checkpoint_path: Path to the checkpoint file (.pt)
         config: Configuration object with model settings
+        loss_fn: Optional custom loss function
     
     Returns:
         Tuple of (model with loaded weights, tokenizer)
@@ -106,7 +160,7 @@ def create_model_from_checkpoint(
     logger.info(f"Loading model from checkpoint: {checkpoint_path}")
     
     # Create fresh model and tokenizer
-    model, tokenizer = create_model(config)
+    model, tokenizer = create_model(config, loss_fn=loss_fn)
     
     # Load checkpoint
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
