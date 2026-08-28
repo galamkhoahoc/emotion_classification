@@ -14,7 +14,7 @@ import numpy as np
 sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import Config
-from src.data.dataset import load_uit_vsmec_dataset, create_dataloaders
+from src.data.dataset import load_dataset_by_config, create_dataloaders
 from src.models.model_factory import create_model, create_loss_function
 from src.models.emoji_embeddings import apply_emoji_embeddings, load_emoji_mapping_from_file
 from src.losses.weighted_cross_entropy import compute_class_weights
@@ -87,6 +87,7 @@ def evaluate(
     model: torch.nn.Module,
     data_loader: torch.utils.data.DataLoader,
     device: torch.device,
+    config: Config,
     logger
 ) -> tuple:
     """
@@ -128,7 +129,11 @@ def evaluate(
             total_loss += loss.item()
             
             # Get predictions
-            predictions = get_predictions_from_logits(logits)
+            predictions = get_predictions_from_logits(
+                logits,
+                problem_type=config.problem_type,
+                threshold=config.sigmoid_threshold
+            )
             
             all_predictions.extend(predictions.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
@@ -138,7 +143,12 @@ def evaluate(
     all_predictions = np.array(all_predictions)
     all_labels = np.array(all_labels)
     
-    metrics = compute_metrics(all_predictions, all_labels)
+    metrics = compute_metrics(
+        all_predictions, 
+        all_labels,
+        problem_type=config.problem_type,
+        label_names=config.emotion_labels
+    )
     
     return avg_loss, metrics, all_predictions, all_labels
 
@@ -192,8 +202,8 @@ def main():
     
     # Load dataset
     logger.info("Loading dataset...")
-    train_data, val_data, test_data = load_uit_vsmec_dataset(
-        dataset_name=config.dataset_name,
+    train_data, val_data, test_data = load_dataset_by_config(
+        config=config,
         cache_dir=config.cache_dir
     )
     
@@ -216,13 +226,11 @@ def main():
     # Create dataloaders
     logger.info("Creating dataloaders...")
     train_loader, val_loader, test_loader = create_dataloaders(
+        config=config,
         train_data=train_data,
         val_data=val_data,
         test_data=test_data,
-        tokenizer=tokenizer,
-        batch_size=config.batch_size,
-        max_length=config.max_length,
-        num_workers=config.num_workers
+        tokenizer=tokenizer
     )
     
     # Apply emoji embeddings
@@ -283,6 +291,7 @@ def main():
             model=model,
             data_loader=val_loader,
             device=device,
+            config=config,
             logger=logger
         )
         
@@ -311,7 +320,10 @@ def main():
                 'optimizer_state_dict': optimizer.state_dict(),
                 'scheduler_state_dict': scheduler.state_dict(),
                 'best_f1': best_f1,
-                'config': config.to_dict()
+                'config': config.to_dict(),
+                'problem_type': config.problem_type,
+                'sigmoid_threshold': config.sigmoid_threshold,
+                'num_labels': config.num_labels
             }, checkpoint_path)
             logger.info(f"Saved best model to {checkpoint_path} (F1: {best_f1:.4f})")
         else:
@@ -333,7 +345,14 @@ def main():
     
     # Load best model for final evaluation
     logger.info("\nLoading best model for final evaluation...")
-    checkpoint = torch.load(os.path.join(config.checkpoint_dir, 'best_model.pt'))
+    checkpoint = torch.load(os.path.join(config.checkpoint_dir, 'best_model.pt'), map_location=device, weights_only=False)
+    
+    if 'problem_type' in checkpoint:
+        if checkpoint['problem_type'] != config.problem_type:
+            raise ValueError(f"Checkpoint problem type ({checkpoint['problem_type']}) does not match config ({config.problem_type})")
+    else:
+        logger.warning("Legacy checkpoint detected without problem_type. Assuming multiclass.")
+        
     model.load_state_dict(checkpoint['model_state_dict'])
     
     # Final evaluation on test set
@@ -342,6 +361,7 @@ def main():
         model=model,
         data_loader=test_loader,
         device=device,
+        config=config,
         logger=logger
     )
     

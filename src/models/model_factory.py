@@ -39,8 +39,19 @@ def create_loss_function(config, class_weights: Optional[torch.Tensor] = None) -
     
     logger.info(f"Creating loss function: {loss_type}")
     
+    # Check problem type for multilabel
+    if getattr(config, 'problem_type', "multiclass_classification") == "multilabel_classification":
+        if loss_type != "cross_entropy":
+            logger.warning(
+                f"Loss type '{loss_type}' requested for multilabel classification, "
+                f"but BCEWithLogitsLoss is required. Overriding loss_type."
+            )
+        loss_fn = nn.BCEWithLogitsLoss(pos_weight=class_weights)
+        logger.info("Created BCEWithLogitsLoss for multilabel classification")
+        return loss_fn
+    
     if loss_type == "cross_entropy":
-        loss_fn = nn.CrossEntropyLoss()
+        loss_fn = nn.CrossEntropyLoss(weight=class_weights)
     elif loss_type == "focal_loss":
         alpha = config.focal_loss_alpha
         gamma = config.focal_loss_gamma

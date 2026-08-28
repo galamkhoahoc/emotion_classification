@@ -41,6 +41,7 @@ ViEmoText là một hệ thống phân loại cảm xúc văn bản tiếng Vi�
 
 ## Tính năng
 
+- ✅ **Dual-Mode Classification**: Hỗ trợ đồng thời bài toán phân loại đơn nhãn (multiclass) và đa nhãn (multilabel)
 - ✅ **Multi-Model Support**: Hỗ trợ PhoBERT và BamiBERT với Factory Pattern
 - ✅ **PhoBERT-based**: Sử dụng mô hình pre-trained PhoBERT cho tiếng Việt
 - ✅ **BamiBERT-based**: Hỗ trợ BamiBERT của Qualcomm với context length 2048
@@ -228,6 +229,18 @@ Script sẽ tạo:
 - `comparison_table.md` - Bảng so sánh dạng Markdown
 - `training_curves.png` - Biểu đồ training curves
 
+### Threshold Optimization (Dành cho Multilabel)
+
+Trong bài toán multilabel, bạn có thể tìm ngưỡng (threshold) tối ưu trên tập validation để tối đa hóa F1 score:
+
+```bash
+python scripts/evaluate.py \
+    --checkpoint checkpoints/best_model.pt \
+    --split test \
+    --sweep_threshold
+```
+Script sẽ tự động tìm threshold cho F1 Macro cao nhất và xuất biểu đồ `threshold_curve.png`.
+
 ### Sử dụng trong code
 
 ```python
@@ -264,13 +277,20 @@ print(f"Predicted emotion: {config.emotion_labels[prediction]}")
 
 ## Dataset
 
-Dự án sử dụng dataset **UIT-VSMEC** (Vietnamese Social Media Emotion Corpus):
+Dự án hỗ trợ các dataset chính từ HuggingFace:
 
+### 1. UIT-VSMEC (vietnamese_students_feedback)
+- **Bài toán**: Multiclass classification (7 nhãn)
 - **Train set**: 5,548 câu
 - **Validation set**: 686 câu  
 - **Test set**: 693 câu
+- **Dataset**: `uit-nlp/vietnamese_students_feedback`
 
-Dataset được tải tự động từ HuggingFace: `uit-nlp/vietnamese_students_feedback`
+### 2. ViGoEmotions
+- **Bài toán**: Multilabel classification (28 nhãn cảm xúc)
+- Dataset tiếng Việt phân loại đa nhãn cảm xúc chi tiết.
+- Cấu hình tự động thiết lập `problem_type="multilabel_classification"` khi sử dụng.
+- **Dataset**: `uitnlp/vigoemotions`
 
 ### Phân bố cảm xúc
 
@@ -372,33 +392,29 @@ for emoji, word in emoji_mapping.items():
 Tất cả cấu hình được quản lý trong `configs/config.py`:
 
 ```python
-# === PhoBERT configuration ===
+# === Multiclass configuration (Mặc định) ===
 config = Config(
     model_type="phobert",        # Chọn PhoBERT
-    num_labels=7,
-    max_length=256,              # Tự động set cho PhoBERT
+    dataset_name="uit-nlp/vietnamese_students_feedback",
     batch_size=16,
     learning_rate=2e-5,
     num_epochs=10,
     enable_emoji_embedding=True,
     loss_type="cross_entropy",
-    output_dir="outputs",
-    checkpoint_dir="checkpoints"
+    output_dir="outputs"
 )
 
-# === BamiBERT configuration ===
+# === Multilabel configuration (ViGoEmotions) ===
 config = Config(
-    model_type="bamibert",       # Chọn BamiBERT
-    num_labels=7,
-    max_length=2048,             # Tự động set cho BamiBERT
-    batch_size=8,                # BamiBERT dùng nhiều memory hơn
-    learning_rate=2e-5,
+    model_type="phobert",
+    dataset_name="uitnlp/vigoemotions",
+    batch_size=16,
+    learning_rate=3e-5,
     num_epochs=10,
-    enable_emoji_embedding=True,
-    loss_type="cross_entropy",
-    output_dir="outputs_bamibert",
-    checkpoint_dir="checkpoints_bamibert"
+    sigmoid_threshold=0.5,       # Ngưỡng cho sigmoid
+    loss_type="cross_entropy"    # Tự động chuyển thành BCEWithLogitsLoss
 )
+# Hệ thống sẽ tự động cấu hình problem_type và num_labels=28
 ```
 
 > **Lưu ý**: Khi sử dụng BamiBERT:

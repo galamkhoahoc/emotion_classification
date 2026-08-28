@@ -78,7 +78,12 @@ class PhoBERTEmotionClassifier(BaseEmotionClassifier):
         # Calculate loss if labels are provided
         loss = None
         if labels is not None:
-            loss = self.loss_fn(logits.view(-1, self.num_labels), labels.view(-1))
+            if len(labels.shape) == 1:
+                # Multiclass [batch_size]
+                loss = self.loss_fn(logits.view(-1, self.num_labels), labels.view(-1))
+            else:
+                # Multilabel [batch_size, num_labels]
+                loss = self.loss_fn(logits, labels)
         
         return {
             'loss': loss,

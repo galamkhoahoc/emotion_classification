@@ -268,3 +268,120 @@ class TestConfigDirectories:
         assert os.path.exists(config.log_dir)
         assert os.path.exists(config.cache_dir)
 
+
+
+class TestConfigMultilabelFields:
+    """Test suite for multilabel classification configuration fields.
+    
+    Validates Requirements: 3.3, 3.4, 3.5
+    """
+
+    def test_default_problem_type_is_multiclass(self):
+        """Test that default problem_type is 'multiclass_classification'."""
+        config = Config()
+        assert config.problem_type == "multiclass_classification"
+
+    def test_accepts_multilabel_problem_type(self):
+        """Test that Config accepts 'multilabel_classification' problem_type."""
+        config = Config(problem_type="multilabel_classification")
+        assert config.problem_type == "multilabel_classification"
+
+    def test_default_sigmoid_threshold(self):
+        """Test that default sigmoid_threshold is 0.5."""
+        config = Config()
+        assert config.sigmoid_threshold == 0.5
+
+    def test_custom_sigmoid_threshold(self):
+        """Test that Config accepts custom sigmoid_threshold."""
+        config = Config(sigmoid_threshold=0.7)
+        assert config.sigmoid_threshold == 0.7
+
+    def test_is_multilabel_returns_false_for_multiclass(self):
+        """Test is_multilabel() returns False for multiclass configuration."""
+        config = Config(problem_type="multiclass_classification")
+        assert config.is_multilabel() is False
+
+    def test_is_multilabel_returns_true_for_multilabel(self):
+        """Test is_multilabel() returns True for multilabel configuration."""
+        config = Config(problem_type="multilabel_classification")
+        assert config.is_multilabel() is True
+
+    def test_is_multilabel_with_default_config(self):
+        """Test is_multilabel() returns False with default configuration."""
+        config = Config()
+        assert config.is_multilabel() is False
+
+    def test_problem_type_in_to_dict(self):
+        """Test that to_dict() includes problem_type field."""
+        config = Config(problem_type="multilabel_classification")
+        config_dict = config.to_dict()
+        
+        assert "problem_type" in config_dict
+        assert config_dict["problem_type"] == "multilabel_classification"
+
+    def test_sigmoid_threshold_in_to_dict(self):
+        """Test that to_dict() includes sigmoid_threshold field."""
+        config = Config(sigmoid_threshold=0.6)
+        config_dict = config.to_dict()
+        
+        assert "sigmoid_threshold" in config_dict
+        assert config_dict["sigmoid_threshold"] == 0.6
+
+    def test_from_dict_with_multilabel_fields(self):
+        """Test that from_dict() correctly sets multilabel fields."""
+        config_dict = {
+            "problem_type": "multilabel_classification",
+            "sigmoid_threshold": 0.8,
+            "num_labels": 28
+        }
+        config = Config.from_dict(config_dict)
+        
+        assert config.problem_type == "multilabel_classification"
+        assert config.sigmoid_threshold == 0.8
+        assert config.num_labels == 28
+        assert config.is_multilabel() is True
+
+    def test_multilabel_config_preserves_other_fields(self):
+        """Test that multilabel configuration preserves other config fields."""
+        config = Config(
+            problem_type="multilabel_classification",
+            sigmoid_threshold=0.65,
+            num_labels=28,
+            batch_size=32,
+            learning_rate=1e-5
+        )
+        
+        assert config.problem_type == "multilabel_classification"
+        assert config.sigmoid_threshold == 0.65
+        assert config.num_labels == 28
+        assert config.batch_size == 32
+        assert config.learning_rate == 1e-5
+
+
+class TestConfigAutoDetectionAndValidation:
+    """Test suite for auto-detection and validation logic.
+    
+    Validates Requirements: 3.6, 3.7
+    """
+    def test_vigoemotions_preset_auto_configuration(self):
+        config = Config(dataset_name="uitnlp/vigoemotions")
+        assert config.problem_type == "multilabel_classification"
+        assert config.num_labels == 28
+        assert len(config.emotion_labels) == 28
+        assert "joy" in config.emotion_labels
+        
+    def test_invalid_problem_type_rejection(self):
+        with pytest.raises(ValueError, match="Invalid problem_type"):
+            Config(problem_type="unknown_type")
+            
+    def test_sigmoid_threshold_validation(self):
+        with pytest.raises(ValueError, match="sigmoid_threshold must be between 0 and 1"):
+            Config(problem_type="multilabel_classification", sigmoid_threshold=-0.1)
+        
+        with pytest.raises(ValueError, match="sigmoid_threshold must be between 0 and 1"):
+            Config(problem_type="multilabel_classification", sigmoid_threshold=1.5)
+            
+    def test_num_labels_emotion_labels_mismatch(self, caplog):
+        # We expect a warning to be logged
+        Config(num_labels=5, emotion_labels=["A", "B", "C"])
+        assert "Length of emotion_labels (3) does not match num_labels (5)" in caplog.text
