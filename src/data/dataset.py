@@ -80,7 +80,7 @@ def load_uit_vsmec_dataset(
     
     try:
         # Load dataset from HuggingFace
-        dataset = load_dataset(dataset_name, cache_dir=cache_dir)
+        dataset = load_dataset(dataset_name, cache_dir=cache_dir, trust_remote_code=True)
     except Exception as e:
         raise RuntimeError(
             f"Failed to load dataset '{dataset_name}'. "
