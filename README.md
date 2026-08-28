@@ -2,7 +2,7 @@
 
 **Phiên bản 2.0 - Cấu trúc mã nguồn được tổ chức lại hoàn toàn**
 
-Dự án phân loại cảm xúc văn bản tiếng Việt sử dụng mô hình **PhoBERT** với hỗ trợ emoji thông qua kỹ thuật **Emoji Embedding Transfer**.
+Dự án phân loại cảm xúc văn bản tiếng Việt sử dụng mô hình **PhoBERT** và **BamiBERT** với hỗ trợ emoji thông qua kỹ thuật **Emoji Embedding Transfer**. Hỗ trợ đa mô hình thông qua Factory Pattern, cho phép dễ dàng chuyển đổi giữa các mô hình.
 
 > **Phát triển bởi:** Nhóm Gà làm khoa học (HCMUS)  
 > **Kế thừa từ:** PhoBERT-Emoji v2 - Đồ án nhóm ban đầu
@@ -41,12 +41,15 @@ ViEmoText là một hệ thống phân loại cảm xúc văn bản tiếng Vi�
 
 ## Tính năng
 
+- ✅ **Multi-Model Support**: Hỗ trợ PhoBERT và BamiBERT với Factory Pattern
 - ✅ **PhoBERT-based**: Sử dụng mô hình pre-trained PhoBERT cho tiếng Việt
+- ✅ **BamiBERT-based**: Hỗ trợ BamiBERT của Qualcomm với context length 2048
 - ✅ **Emoji Support**: Hỗ trợ emoji trong văn bản thông qua Emoji Embedding Transfer
 - ✅ **Multiple Loss Functions**: Hỗ trợ Cross Entropy, Weighted CE, và Focal Loss
 - ✅ **Comprehensive Metrics**: Accuracy, Precision, Recall, F1 (Macro & Weighted)
 - ✅ **Training Utilities**: Early stopping, checkpointing, learning rate scheduling
 - ✅ **Evaluation Tools**: Confusion matrix, classification report, prediction saving
+- ✅ **Model Comparison**: So sánh hiệu suất giữa các mô hình
 - ✅ **Modular Architecture**: Cấu trúc code rõ ràng, dễ mở rộng và bảo trì
 
 ---
@@ -71,7 +74,10 @@ ViEmoText/
 │   │
 │   ├── models/                    # Kiến trúc mô hình
 │   │   ├── __init__.py
+│   │   ├── base_classifier.py    # Abstract base class
 │   │   ├── phobert_emotion.py    # PhoBERT classifier
+│   │   ├── bamibert_emotion.py   # BamiBERT classifier
+│   │   ├── model_factory.py      # Model factory
 │   │   └── emoji_embeddings.py   # Emoji embedding utilities
 │   │
 │   ├── losses/                    # Hàm loss
@@ -86,7 +92,8 @@ ViEmoText/
 │
 ├── scripts/                       # Scripts thực thi
 │   ├── train.py                  # Training script
-│   └── evaluate.py               # Evaluation script
+│   ├── evaluate.py               # Evaluation script
+│   └── compare_experiments.py    # Model comparison script
 │
 ├── requirements.txt               # Dependencies
 ├── README.md                      # File này
@@ -159,6 +166,22 @@ python scripts/train.py \
 python scripts/train.py --no_emoji
 ```
 
+#### 4. Training với BamiBERT
+
+```bash
+python scripts/train.py --model_type bamibert
+```
+
+#### 5. Training BamiBERT với tùy chỉnh
+
+```bash
+python scripts/train.py \
+    --model_type bamibert \
+    --batch_size 8 \
+    --num_epochs 15 \
+    --learning_rate 2e-5
+```
+
 ### Evaluation
 
 #### 1. Đánh giá trên test set
@@ -180,30 +203,51 @@ python scripts/evaluate.py \
     --output_dir evaluation_results
 ```
 
+#### 3. Đánh giá model BamiBERT
+
+```bash
+python scripts/evaluate.py \
+    --checkpoint checkpoints/best_model_bamibert.pt \
+    --model_type bamibert \
+    --split test
+```
+
+### So sánh mô hình
+
+So sánh kết quả giữa PhoBERT và BamiBERT:
+
+```bash
+python scripts/compare_experiments.py \
+    outputs/phobert_experiment \
+    outputs/bamibert_experiment \
+    --output comparison_results
+```
+
+Script sẽ tạo:
+- `comparison_table.csv` - Bảng so sánh dạng CSV
+- `comparison_table.md` - Bảng so sánh dạng Markdown
+- `training_curves.png` - Biểu đồ training curves
+
 ### Sử dụng trong code
 
 ```python
 from configs.config import Config
-from src.models.phobert_emotion import PhoBERTEmotionClassifier
+from src.models.model_factory import create_model, create_model_from_checkpoint
 from src.models.emoji_embeddings import apply_emoji_embeddings
-from transformers import AutoTokenizer
 import torch
 
-# Load config
-config = Config()
-
-# Load tokenizer and model
-tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-model = PhoBERTEmotionClassifier(
-    model_name=config.model_name,
-    num_labels=config.num_labels
-)
-
-# Apply emoji embeddings
+# === Sử dụng PhoBERT (mặc định) ===
+config = Config(model_type="phobert")
+model, tokenizer = create_model(config)
 model = apply_emoji_embeddings(model, tokenizer)
 
-# Load trained weights
-model.load_state_dict(torch.load('path/to/model.pt'))
+# === Sử dụng BamiBERT ===
+config = Config(model_type="bamibert")
+model, tokenizer = create_model(config)
+
+# === Load model từ checkpoint ===
+config = Config(model_type="phobert")
+model, tokenizer = create_model_from_checkpoint('checkpoints/best_model.pt', config)
 model.eval()
 
 # Predict
@@ -250,6 +294,25 @@ PhoBERT là mô hình BERT được pre-train đặc biệt cho tiếng Việt, 
 - **Tokenization**: BPE (Byte Pair Encoding) với từ điển 64K tokens
 - **Architecture**: BERT-base (12 layers, 768 hidden size, 12 attention heads)
 - **Pre-training**: 20GB Vietnamese text từ Wikipedia và tin tức
+- **Max context length**: 256 tokens
+- **Word segmentation**: Cần thiết (sử dụng VnCoreNLP)
+
+### 2. BamiBERT Model
+
+BamiBERT là mô hình BERT tiếng Việt do Qualcomm AI Research phát triển:
+- **Architecture**: BERT-base tương thích
+- **Max context length**: 2048 tokens (dài hơn PhoBERT 8 lần)
+- **Word segmentation**: Không cần thiết (hoạt động với raw text)
+- **Lợi ích**: Xử lý được văn bản dài hơn, không cần preprocessing phức tạp
+
+### So sánh PhoBERT vs BamiBERT
+
+| Đặc điểm | PhoBERT | BamiBERT |
+|-----------|---------|----------|
+| Max tokens | 256 | 2048 |
+| Word segmentation | Cần thiết | Không cần |
+| Model name | vinai/phobert-base | Qualcomm-AI-Research/BamiBERT |
+| Nguồn | VinAI Research | Qualcomm AI Research |
 
 ### 2. Emoji Embedding Transfer
 
@@ -309,28 +372,40 @@ for emoji, word in emoji_mapping.items():
 Tất cả cấu hình được quản lý trong `configs/config.py`:
 
 ```python
+# === PhoBERT configuration ===
 config = Config(
-    # Model
-    model_name="vinai/phobert-base",
+    model_type="phobert",        # Chọn PhoBERT
     num_labels=7,
-    max_length=256,
-    
-    # Training
+    max_length=256,              # Tự động set cho PhoBERT
     batch_size=16,
     learning_rate=2e-5,
     num_epochs=10,
-    
-    # Emoji
     enable_emoji_embedding=True,
-    
-    # Loss
-    loss_type="cross_entropy",  # hoặc "focal_loss", "weighted_ce"
-    
-    # Paths
+    loss_type="cross_entropy",
     output_dir="outputs",
     checkpoint_dir="checkpoints"
 )
+
+# === BamiBERT configuration ===
+config = Config(
+    model_type="bamibert",       # Chọn BamiBERT
+    num_labels=7,
+    max_length=2048,             # Tự động set cho BamiBERT
+    batch_size=8,                # BamiBERT dùng nhiều memory hơn
+    learning_rate=2e-5,
+    num_epochs=10,
+    enable_emoji_embedding=True,
+    loss_type="cross_entropy",
+    output_dir="outputs_bamibert",
+    checkpoint_dir="checkpoints_bamibert"
+)
 ```
+
+> **Lưu ý**: Khi sử dụng BamiBERT:
+> - `model_name` tự động được set thành `Qualcomm-AI-Research/BamiBERT`
+> - `max_length` mặc định 2048 (có thể giảm để tiết kiệm memory)
+> - `use_word_segmentation` tự động disabled
+> - Nên giảm `batch_size` do context length lớn hơn
 
 ---
 
@@ -338,11 +413,13 @@ config = Config(
 
 1. **PhoBERT**: Nguyen, D. Q., & Nguyen, A. T. (2020). PhoBERT: Pre-trained language models for Vietnamese. *Findings of EMNLP 2020*. [[Paper]](https://arxiv.org/abs/2003.00744)
 
-2. **UIT-VSMEC**: Vietnamese Social Media Emotion Corpus. [[Dataset]](https://huggingface.co/datasets/uit-nlp/vietnamese_students_feedback)
+2. **BamiBERT**: Qualcomm AI Research. BamiBERT: A Vietnamese BERT model. [[Model]](https://huggingface.co/Qualcomm-AI-Research/BamiBERT)
 
-3. **Transformers**: Wolf, T., et al. (2020). Transformers: State-of-the-art Natural Language Processing. *EMNLP 2020*. [[Paper]](https://arxiv.org/abs/1910.03771)
+3. **UIT-VSMEC**: Vietnamese Social Media Emotion Corpus. [[Dataset]](https://huggingface.co/datasets/uit-nlp/vietnamese_students_feedback)
 
-4. **Focal Loss**: Lin, T. Y., et al. (2017). Focal Loss for Dense Object Detection. *ICCV 2017*. [[Paper]](https://arxiv.org/abs/1708.02002)
+4. **Transformers**: Wolf, T., et al. (2020). Transformers: State-of-the-art Natural Language Processing. *EMNLP 2020*. [[Paper]](https://arxiv.org/abs/1910.03771)
+
+5. **Focal Loss**: Lin, T. Y., et al. (2017). Focal Loss for Dense Object Detection. *ICCV 2017*. [[Paper]](https://arxiv.org/abs/1708.02002)
 
 ---
 
@@ -375,6 +452,7 @@ Email: galamkhoahoc@gmail.com
 ## Lời cảm ơn
 
 - VinAI Research cho PhoBERT model
+- Qualcomm AI Research cho BamiBERT model
 - UIT-NLP Lab cho dataset UIT-VSMEC
 - HuggingFace cho Transformers library
 - Cộng đồng NLP Việt Nam

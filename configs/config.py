@@ -3,6 +3,7 @@ Configuration file for ViEmoText model training and evaluation.
 """
 
 import os
+import logging
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 
@@ -16,6 +17,7 @@ class Config:
     version: str = "2.0"
     
     # Model configuration
+    model_type: str = "phobert"  # Options: "phobert", "bamibert"
     model_name: str = "vinai/phobert-base"
     num_labels: int = 7
     max_length: int = 256
@@ -88,7 +90,60 @@ class Config:
     use_word_segmentation: bool = True
     
     def __post_init__(self):
-        """Create necessary directories."""
+        """Validate configuration and set model-specific defaults."""
+        logger = logging.getLogger(__name__)
+        
+        # Validate model_type
+        valid_types = ["phobert", "bamibert"]
+        if self.model_type.lower() not in valid_types:
+            raise ValueError(
+                f"Invalid model_type: '{self.model_type}'. "
+                f"Must be one of {valid_types}"
+            )
+        
+        # Normalize model_type to lowercase
+        self.model_type = self.model_type.lower()
+        
+        # Set model-specific defaults
+        if self.model_type == "phobert":
+            self.model_name = "vinai/phobert-base"
+            # PhoBERT max context: 256 tokens
+            if self.max_length > 256:
+                logger.warning(
+                    f"max_length ({self.max_length}) exceeds PhoBERT's "
+                    f"recommended maximum (256). Setting to 256."
+                )
+                self.max_length = 256
+        
+        elif self.model_type == "bamibert":
+            self.model_name = "Qualcomm-AI-Research/BamiBERT"
+            # BamiBERT default max_length is 2048 (unless user set it lower)
+            if self.max_length == 256:
+                # User likely didn't override, set to BamiBERT's default
+                self.max_length = 2048
+            # BamiBERT max context: 2048 tokens
+            if self.max_length > 2048:
+                logger.warning(
+                    f"max_length ({self.max_length}) exceeds BamiBERT's "
+                    f"maximum (2048). Setting to 2048."
+                )
+                self.max_length = 2048
+            
+            # BamiBERT doesn't need word segmentation
+            if self.use_word_segmentation:
+                logger.warning(
+                    "BamiBERT works with raw text. "
+                    "Disabling word segmentation."
+                )
+                self.use_word_segmentation = False
+        
+        # Validate num_labels
+        if self.num_labels < 2:
+            raise ValueError(
+                f"num_labels must be at least 2, got {self.num_labels}"
+            )
+        
+        # Create necessary directories
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(self.log_dir, exist_ok=True)

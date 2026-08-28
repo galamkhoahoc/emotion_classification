@@ -15,16 +15,15 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import Config
 from src.data.dataset import load_uit_vsmec_dataset, create_dataloaders
-from src.models.phobert_emotion import PhoBERTEmotionClassifier
+from src.models.model_factory import create_model
 from src.models.emoji_embeddings import apply_emoji_embeddings, load_emoji_mapping_from_file
 from src.losses.focal_loss import FocalLoss
 from src.losses.weighted_cross_entropy import WeightedCrossEntropyLoss, compute_class_weights
 from src.utils.metrics import compute_metrics, get_predictions_from_logits
 from src.utils.logger import setup_logger, log_metrics, MetricsTracker
 
-from transformers import AutoTokenizer
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import get_linear_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup
 
 
 def train_epoch(
@@ -149,6 +148,8 @@ def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="Train ViEmoText model")
     parser.add_argument('--config', type=str, default=None, help='Path to config file')
+    parser.add_argument('--model_type', type=str, default=None, choices=['phobert', 'bamibert'],
+                        help='Model type to use (phobert or bamibert)')
     parser.add_argument('--batch_size', type=int, default=None, help='Batch size')
     parser.add_argument('--num_epochs', type=int, default=None, help='Number of epochs')
     parser.add_argument('--learning_rate', type=float, default=None, help='Learning rate')
@@ -157,19 +158,21 @@ def main():
     args = parser.parse_args()
     
     # Load configuration
-    config = Config()
-    
-    # Override config with command line arguments
+    config_kwargs = {}
+    if args.model_type:
+        config_kwargs['model_type'] = args.model_type
     if args.batch_size:
-        config.batch_size = args.batch_size
+        config_kwargs['batch_size'] = args.batch_size
     if args.num_epochs:
-        config.num_epochs = args.num_epochs
+        config_kwargs['num_epochs'] = args.num_epochs
     if args.learning_rate:
-        config.learning_rate = args.learning_rate
+        config_kwargs['learning_rate'] = args.learning_rate
     if args.output_dir:
-        config.output_dir = args.output_dir
+        config_kwargs['output_dir'] = args.output_dir
     if args.no_emoji:
-        config.enable_emoji_embedding = False
+        config_kwargs['enable_emoji_embedding'] = False
+    
+    config = Config(**config_kwargs)
     
     # Setup logger
     log_file = os.path.join(config.log_dir, 'training.log')
@@ -188,9 +191,9 @@ def main():
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     
-    # Load tokenizer
-    logger.info(f"Loading tokenizer: {config.model_name}")
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    # Create model and tokenizer via factory
+    logger.info(f"Creating model via factory: {config.model_type} ({config.model_name})")
+    model, tokenizer = create_model(config)
     
     # Load dataset
     logger.info("Loading dataset...")
@@ -209,13 +212,6 @@ def main():
         batch_size=config.batch_size,
         max_length=config.max_length,
         num_workers=config.num_workers
-    )
-    
-    # Initialize model
-    logger.info(f"Initializing model: {config.model_name}")
-    model = PhoBERTEmotionClassifier(
-        model_name=config.model_name,
-        num_labels=config.num_labels
     )
     
     # Apply emoji embeddings

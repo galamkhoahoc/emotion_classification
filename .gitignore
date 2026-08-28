@@ -28,6 +28,7 @@ ENV/
 
 # IDE
 .vscode/
+.kiro/
 .idea/
 *.swp
 *.swo

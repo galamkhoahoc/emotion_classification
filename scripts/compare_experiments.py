@@ -105,6 +105,7 @@ def create_comparison_table(experiments: List[Dict]) -> pd.DataFrame:
         
         row = {
             'Experiment': name,
+            'Model Type': config.get('model_type', 'N/A'),
             'Accuracy': final_metrics.get('accuracy', 'N/A'),
             'F1 Macro': final_metrics.get('f1_macro', 'N/A'),
             'F1 Weighted': final_metrics.get('f1_weighted', 'N/A'),
@@ -140,6 +141,7 @@ def print_best_experiment(df: pd.DataFrame, metric: str = 'F1 Macro'):
     print(f"Best Experiment (by {metric})")
     print(f"{'='*60}")
     print(f"Name: {best_exp['Experiment']}")
+    print(f"Model Type: {best_exp['Model Type']}")
     print(f"{metric}: {best_exp[metric]:.4f}")
     print(f"Accuracy: {best_exp['Accuracy']:.4f}")
     print(f"F1 Weighted: {best_exp['F1 Weighted']:.4f}")
@@ -182,10 +184,18 @@ def main():
     print(df.to_string(index=False))
     print("="*80)
     
-    # Save table
-    table_path = output_dir / 'comparison_table.csv'
-    df.to_csv(table_path, index=False)
-    print(f"\nTable saved to {table_path}")
+    # Save table as CSV
+    table_csv_path = output_dir / 'comparison_table.csv'
+    df.to_csv(table_csv_path, index=False)
+    print(f"\nCSV table saved to {table_csv_path}")
+    
+    # Save table as Markdown
+    table_md_path = output_dir / 'comparison_table.md'
+    with open(table_md_path, 'w', encoding='utf-8') as f:
+        f.write("# Experiment Comparison\n\n")
+        f.write(df.to_markdown(index=False))
+        f.write("\n")
+    print(f"Markdown table saved to {table_md_path}")
     
     # Print best experiment
     print_best_experiment(df, metric=args.metric)

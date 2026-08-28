@@ -1,5 +1,10 @@
 """
-PhoBERT-based model for Vietnamese emotion classification.
+BamiBERT-based model for Vietnamese emotion classification.
+
+BamiBERT is Qualcomm's Vietnamese BERT model with:
+- Extended context length (2048 tokens vs PhoBERT's 256)
+- No word segmentation required (works with raw text)
+- State-of-the-art Vietnamese language understanding
 """
 
 import torch
@@ -9,36 +14,40 @@ from typing import Optional, Dict
 from .base_classifier import BaseEmotionClassifier
 
 
-class PhoBERTEmotionClassifier(BaseEmotionClassifier):
+class BamiBERTEmotionClassifier(BaseEmotionClassifier):
     """
-    PhoBERT model for emotion classification with optional emoji support.
+    BamiBERT model for emotion classification.
+    
+    BamiBERT is Qualcomm's Vietnamese BERT model that operates on raw text
+    without requiring word segmentation, and supports up to 2048 tokens
+    of context.
     
     Args:
-        model_name: Name of the pretrained PhoBERT model
+        model_name: Name of the pretrained BamiBERT model
         num_labels: Number of emotion classes
         dropout_prob: Dropout probability for the classifier
-        hidden_size: Hidden size of the PhoBERT model (default: 768)
+        hidden_size: Hidden size of the BamiBERT model (default: 768)
     """
     
     def __init__(
         self,
-        model_name: str = "vinai/phobert-base",
+        model_name: str = "Qualcomm-AI-Research/BamiBERT",
         num_labels: int = 7,
         dropout_prob: float = 0.1,
         hidden_size: int = 768
     ):
         super().__init__(num_labels=num_labels)
         
-        # Load PhoBERT configuration
+        # Load BamiBERT configuration
         self.config = AutoConfig.from_pretrained(model_name)
         
-        # Load pretrained PhoBERT model
-        self.phobert = AutoModel.from_pretrained(model_name, config=self.config)
+        # Load pretrained BamiBERT model
+        self.bamibert = AutoModel.from_pretrained(model_name, config=self.config)
         
         # Classifier head
         self.dropout = nn.Dropout(dropout_prob)
         self.classifier = nn.Linear(hidden_size, num_labels)
-        
+    
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -56,8 +65,8 @@ class PhoBERTEmotionClassifier(BaseEmotionClassifier):
         Returns:
             Dictionary containing loss (if labels provided) and logits
         """
-        # Get PhoBERT outputs
-        outputs = self.phobert(
+        # Get BamiBERT outputs
+        outputs = self.bamibert(
             input_ids=input_ids,
             attention_mask=attention_mask
         )
@@ -89,13 +98,13 @@ class PhoBERTEmotionClassifier(BaseEmotionClassifier):
         Returns:
             Embedding layer
         """
-        return self.phobert.embeddings.word_embeddings
+        return self.bamibert.embeddings.word_embeddings
     
-    def resize_token_embeddings(self, new_num_tokens: int):
+    def resize_token_embeddings(self, new_num_tokens: int) -> None:
         """
         Resize token embeddings to accommodate new tokens (e.g., emojis).
         
         Args:
             new_num_tokens: New vocabulary size
         """
-        self.phobert.resize_token_embeddings(new_num_tokens)
+        self.bamibert.resize_token_embeddings(new_num_tokens)

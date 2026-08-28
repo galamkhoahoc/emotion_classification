@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from configs.config import Config
 from src.data.dataset import load_uit_vsmec_dataset, create_dataloaders
-from src.models.phobert_emotion import PhoBERTEmotionClassifier
+from src.models.model_factory import create_model_from_checkpoint
 from src.utils.metrics import (
     compute_metrics,
     compute_confusion_matrix,
@@ -24,7 +24,6 @@ from src.utils.metrics import (
 )
 from src.utils.logger import setup_logger, log_metrics
 
-from transformers import AutoTokenizer
 from tqdm import tqdm
 
 
@@ -93,10 +92,15 @@ def main():
                         help='Save predictions to file')
     parser.add_argument('--plot_cm', action='store_true',
                         help='Plot and save confusion matrix')
+    parser.add_argument('--model_type', type=str, default=None, choices=['phobert', 'bamibert'],
+                        help='Model type to use (phobert or bamibert)')
     args = parser.parse_args()
     
     # Load configuration
-    config = Config()
+    config_kwargs = {}
+    if args.model_type:
+        config_kwargs['model_type'] = args.model_type
+    config = Config(**config_kwargs)
     
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
@@ -115,9 +119,11 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     
-    # Load tokenizer
-    logger.info(f"Loading tokenizer: {config.model_name}")
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    # Create model from checkpoint via factory
+    logger.info(f"Creating model via factory: {config.model_type} ({config.model_name})")
+    model, tokenizer = create_model_from_checkpoint(args.checkpoint, config)
+    
+    model = model.to(device)
     
     # Load dataset
     logger.info("Loading dataset...")
@@ -153,26 +159,6 @@ def main():
         num_workers=config.num_workers,
         pin_memory=True
     )
-    
-    # Initialize model
-    logger.info(f"Initializing model: {config.model_name}")
-    model = PhoBERTEmotionClassifier(
-        model_name=config.model_name,
-        num_labels=config.num_labels
-    )
-    
-    # Load checkpoint
-    logger.info(f"Loading checkpoint from {args.checkpoint}")
-    checkpoint = torch.load(args.checkpoint, map_location=device)
-    
-    if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
-        logger.info(f"Loaded from epoch {checkpoint.get('epoch', 'unknown')}")
-        logger.info(f"Best F1 from training: {checkpoint.get('best_f1', 'unknown'):.4f}")
-    else:
-        model.load_state_dict(checkpoint)
-    
-    model = model.to(device)
     
     # Evaluate
     logger.info(f"\nEvaluating on {args.split} set...")
