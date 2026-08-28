@@ -81,26 +81,37 @@ PYTHON_VERSION=$($PYTHON_CMD --version 2>&1)
 print_success "Found: $PYTHON_VERSION"
 
 # ─── Step 2: Create virtual environment ──────────────────────────────────────
-print_step "Step 2/4: Setting up virtual environment"
+print_step "Step 2/4: Setting up environment"
 
-if [ ! -d "$VENV_DIR" ]; then
-    echo "  Creating virtual environment at $VENV_DIR ..."
-    $PYTHON_CMD -m venv "$VENV_DIR"
-    print_success "Virtual environment created."
-else
-    print_warning "Virtual environment already exists, reusing it."
+# Detect Google Colab / container environments where venv is unnecessary
+IS_COLAB=false
+if [ -n "$COLAB_RELEASE_TAG" ] || [ -d "/content" ] && [ -f "/usr/local/bin/pip" ]; then
+    IS_COLAB=true
 fi
 
-# Activate virtual environment
-if [ -f "$VENV_DIR/bin/activate" ]; then
-    source "$VENV_DIR/bin/activate"
-elif [ -f "$VENV_DIR/Scripts/activate" ]; then
-    source "$VENV_DIR/Scripts/activate"
+if [ "$IS_COLAB" = true ]; then
+    print_warning "Google Colab detected — skipping virtual environment."
+    print_success "Using Colab's built-in environment."
 else
-    print_error "Cannot find virtual environment activation script!"
-    exit 1
+    if [ ! -d "$VENV_DIR" ]; then
+        echo "  Creating virtual environment at $VENV_DIR ..."
+        $PYTHON_CMD -m venv "$VENV_DIR"
+        print_success "Virtual environment created."
+    else
+        print_warning "Virtual environment already exists, reusing it."
+    fi
+
+    # Activate virtual environment
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        source "$VENV_DIR/bin/activate"
+    elif [ -f "$VENV_DIR/Scripts/activate" ]; then
+        source "$VENV_DIR/Scripts/activate"
+    else
+        print_error "Cannot find virtual environment activation script!"
+        exit 1
+    fi
+    print_success "Virtual environment activated."
 fi
-print_success "Virtual environment activated."
 
 # Upgrade pip
 echo "  Upgrading pip..."
