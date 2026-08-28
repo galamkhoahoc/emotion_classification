@@ -9,21 +9,21 @@ Dự án phân loại cảm xúc văn bản tiếng Việt sử dụng mô hình
 
 ---
 
-## 📋 Mục lục
+## Mục lục
 
-- [Tổng quan](#-tổng-quan)
-- [Tính năng](#-tính-năng)
-- [Cấu trúc dự án](#-cấu-trúc-dự-án)
-- [Cài đặt](#-cài-đặt)
-- [Sử dụng](#-sử-dụng)
-- [Dataset](#-dataset)
-- [Phương pháp](#-phương-pháp)
-- [Kết quả](#-kết-quả)
-- [Tài liệu tham khảo](#-tài-liệu-tham-khảo)
+- [Tổng quan](#tổng-quan)
+- [Tính năng](#tính-năng)
+- [Cấu trúc dự án](#cấu-trúc-dự-án)
+- [Cài đặt](#cài-đặt)
+- [Sử dụng](#sử-dụng)
+- [Dataset](#dataset)
+- [Phương pháp](#phương-pháp)
+- [Kết quả](#kết-quả)
+- [Tài liệu tham khảo](#tài-liệu-tham-khảo)
 
 ---
 
-## 🎯 Tổng quan
+## Tổng quan
 
 ViEmoText là một hệ thống phân loại cảm xúc văn bản tiếng Việt được xây dựng trên nền tảng PhoBERT (Vietnamese BERT). Điểm đặc biệt của dự án là khả năng hiểu và xử lý emoji thông qua kỹ thuật **Emoji Embedding Transfer** - ánh xạ vector embedding từ các từ tiếng Việt tương ứng sang emoji.
 
@@ -39,7 +39,7 @@ ViEmoText là một hệ thống phân loại cảm xúc văn bản tiếng Vi�
 
 ---
 
-## ✨ Tính năng
+## Tính năng
 
 - ✅ **PhoBERT-based**: Sử dụng mô hình pre-trained PhoBERT cho tiếng Việt
 - ✅ **Emoji Support**: Hỗ trợ emoji trong văn bản thông qua Emoji Embedding Transfer
@@ -51,7 +51,7 @@ ViEmoText là một hệ thống phân loại cảm xúc văn bản tiếng Vi�
 
 ---
 
-## 📁 Cấu trúc dự án
+## Cấu trúc dự án
 
 ```
 ViEmoText/
@@ -96,7 +96,7 @@ ViEmoText/
 
 ---
 
-## 🚀 Cài đặt
+## Cài đặt
 
 ### Yêu cầu hệ thống
 
@@ -133,7 +133,7 @@ pip install vncorenlp
 
 ---
 
-## 💻 Sử dụng
+## Sử dụng
 
 ### Training
 
@@ -218,7 +218,7 @@ print(f"Predicted emotion: {config.emotion_labels[prediction]}")
 
 ---
 
-## 📊 Dataset
+## Dataset
 
 Dự án sử dụng dataset **UIT-VSMEC** (Vietnamese Social Media Emotion Corpus):
 
@@ -242,7 +242,7 @@ Dataset được tải tự động từ HuggingFace: `uit-nlp/vietnamese_studen
 
 ---
 
-## 🔬 Phương pháp
+## Phương pháp
 
 ### 1. PhoBERT Model
 
@@ -286,7 +286,7 @@ for emoji, word in emoji_mapping.items():
 
 ---
 
-## 📈 Kết quả
+## Kết quả
 
 ### Baseline Performance (PhoBERT gốc)
 
@@ -304,7 +304,7 @@ for emoji, word in emoji_mapping.items():
 
 ---
 
-## 🔧 Cấu hình
+## Cấu hình
 
 Tất cả cấu hình được quản lý trong `configs/config.py`:
 
@@ -334,7 +334,7 @@ config = Config(
 
 ---
 
-## 📚 Tài liệu tham khảo
+## Tài liệu tham khảo
 
 1. **PhoBERT**: Nguyen, D. Q., & Nguyen, A. T. (2020). PhoBERT: Pre-trained language models for Vietnamese. *Findings of EMNLP 2020*. [[Paper]](https://arxiv.org/abs/2003.00744)
 
@@ -346,7 +346,7 @@ config = Config(
 
 ---
 
-## 👥 Đóng góp
+## Đóng góp
 
 Nhóm nghiên cứu **Gà làm khoa học** - Trường Đại học Khoa học Tự nhiên TPHCM
 
@@ -358,13 +358,13 @@ Nhóm nghiên cứu **Gà làm khoa học** - Trường Đại học Khoa học 
 
 ---
 
-## 📝 License
+## License
 
 Dự án được phát hành dưới [MIT License](LICENSE).
 
 ---
 
-## 📧 Liên hệ
+## Liên hệ
 
 **Nhóm nghiên cứu Gà làm khoa học**  
 Khu đô thị Đại học Quốc gia, Phường Đông Hòa, TP.HCM  
@@ -372,7 +372,7 @@ Email: galamkhoahoc@gmail.com
 
 ---
 
-## 🙏 Lời cảm ơn
+## Lời cảm ơn
 
 - VinAI Research cho PhoBERT model
 - UIT-NLP Lab cho dataset UIT-VSMEC
