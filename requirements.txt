@@ -1,0 +1,30 @@
+# Core dependencies
+torch>=2.0.0
+transformers>=4.30.0
+datasets>=2.14.0
+
+# Data processing
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Machine Learning utilities
+scikit-learn>=1.3.0
+tqdm>=4.65.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Vietnamese NLP (optional - for word segmentation)
+# vncorenlp>=1.0.3
+
+# Development dependencies (optional)
+# jupyter>=1.0.0
+# ipykernel>=6.0.0
+
+# Training utilities
+accelerate>=0.20.0
+
+# Logging and monitoring (optional)
+# tensorboard>=2.13.0
+# wandb>=0.15.0

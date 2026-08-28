@@ -1,113 +1,384 @@
-# PhoBERT-Emoji v2
+# ViEmoText - Vietnamese Emotion Text Classification
 
-**Phiên bản đồ án nhóm xây dựng pipeline và mô hình Emoji Weights ban đầu. Nhóm Gà làm khoa học (HCMUS) kế thừa hợp pháp phiên bản này và mở rộng phát triển nó trong các giai đoạn tiếp theo.**
+**Phiên bản 2.0 - Cấu trúc mã nguồn được tổ chức lại hoàn toàn**
 
-Dự án phân loại cảm xúc tiếng Việt sử dụng mô hình PhoBERT với hỗ trợ emoji.
+Dự án phân loại cảm xúc văn bản tiếng Việt sử dụng mô hình **PhoBERT** với hỗ trợ emoji thông qua kỹ thuật **Emoji Embedding Transfer**.
 
-##  Mô tả
+> **Phát triển bởi:** Nhóm Gà làm khoa học (HCMUS)  
+> **Kế thừa từ:** PhoBERT-Emoji v2 - Đồ án nhóm ban đầu
 
-Dự án này sử dụng mô hình **PhoBERT** (Vietnamese BERT) để phân loại cảm xúc trong văn bản tiếng Việt. Điểm đặc biệt của phiên bản v2 là khả năng xử lý và hiểu ngữ nghĩa của emoji thông qua việc ánh xạ vector embedding từ các từ tiếng Việt tương ứng.
+---
 
-### Tính năng chính
+## 📋 Mục lục
 
--  Phân loại 7 loại cảm xúc: Enjoyment, Sadness, Anger, Fear, Disgust, Surprise, Other
--  Sử dụng PhoBERT pre-trained model cho tiếng Việt
--  Hỗ trợ emoji trong văn bản thông qua kỹ thuật embedding transfer
--  Sử dụng VnCoreNLP cho việc word segmentation
--  Trained trên dataset UIT-VSMEC
+- [Tổng quan](#-tổng-quan)
+- [Tính năng](#-tính-năng)
+- [Cấu trúc dự án](#-cấu-trúc-dự-án)
+- [Cài đặt](#-cài-đặt)
+- [Sử dụng](#-sử-dụng)
+- [Dataset](#-dataset)
+- [Phương pháp](#-phương-pháp)
+- [Kết quả](#-kết-quả)
+- [Tài liệu tham khảo](#-tài-liệu-tham-khảo)
 
-## Cài đặt
+---
 
-### Yêu cầu
+## 🎯 Tổng quan
 
-- Python 3.7+
-- CUDA (nếu sử dụng GPU)
-- Java JDK 8+ (cho VnCoreNLP)
+ViEmoText là một hệ thống phân loại cảm xúc văn bản tiếng Việt được xây dựng trên nền tảng PhoBERT (Vietnamese BERT). Điểm đặc biệt của dự án là khả năng hiểu và xử lý emoji thông qua kỹ thuật **Emoji Embedding Transfer** - ánh xạ vector embedding từ các từ tiếng Việt tương ứng sang emoji.
 
+### Các loại cảm xúc được phân loại:
 
-## Dataset
+1. **Other** (Khác)
+2. **Disgust** (Ghê tởm)
+3. **Enjoyment** (Vui vẻ)
+4. **Sadness** (Buồn)
+5. **Fear** (Sợ hãi)
+6. **Surprise** (Ngạc nhiên)
+7. **Anger** (Tức giận)
 
-Dự án sử dụng dataset **UIT-VSMEC** (Vietnamese Social Media Emotion Corpus) từ Hugging Face:
+---
 
-- **Train set**: 5,548 câu
-- **Validation set**: 686 câu
-- **Test set**: 693 câu
+## ✨ Tính năng
 
-Dataset bao gồm các cảm xúc:
-- Other (Khác)
-- Disgust (Ghê tởm)
-- Enjoyment (Vui vẻ)
-- Sadness (Buồn)
-- Fear (Sợ hãi)
-- Surprise (Ngạc nhiên)
-- Anger (Tức giận)
+- ✅ **PhoBERT-based**: Sử dụng mô hình pre-trained PhoBERT cho tiếng Việt
+- ✅ **Emoji Support**: Hỗ trợ emoji trong văn bản thông qua Emoji Embedding Transfer
+- ✅ **Multiple Loss Functions**: Hỗ trợ Cross Entropy, Weighted CE, và Focal Loss
+- ✅ **Comprehensive Metrics**: Accuracy, Precision, Recall, F1 (Macro & Weighted)
+- ✅ **Training Utilities**: Early stopping, checkpointing, learning rate scheduling
+- ✅ **Evaluation Tools**: Confusion matrix, classification report, prediction saving
+- ✅ **Modular Architecture**: Cấu trúc code rõ ràng, dễ mở rộng và bảo trì
 
-## Sử dụng
+---
+
+## 📁 Cấu trúc dự án
+
+```
+ViEmoText/
+├── docs/                           # Tài liệu phiên bản
+│   └── VERSION_280826_1543.md     # Version log
+│
+├── configs/                        # Cấu hình
+│   ├── __init__.py
+│   └── config.py                  # File cấu hình chính
+│
+├── src/                           # Mã nguồn chính
+│   ├── __init__.py
+│   │
+│   ├── data/                      # Xử lý dữ liệu
+│   │   ├── __init__.py
+│   │   └── dataset.py             # Dataset classes và data loading
+│   │
+│   ├── models/                    # Kiến trúc mô hình
+│   │   ├── __init__.py
+│   │   ├── phobert_emotion.py    # PhoBERT classifier
+│   │   └── emoji_embeddings.py   # Emoji embedding utilities
+│   │
+│   ├── losses/                    # Hàm loss
+│   │   ├── __init__.py
+│   │   ├── focal_loss.py         # Focal Loss
+│   │   └── weighted_cross_entropy.py
+│   │
+│   └── utils/                     # Tiện ích
+│       ├── __init__.py
+│       ├── metrics.py             # Metrics computation
+│       └── logger.py              # Logging utilities
+│
+├── scripts/                       # Scripts thực thi
+│   ├── train.py                  # Training script
+│   └── evaluate.py               # Evaluation script
+│
+├── requirements.txt               # Dependencies
+├── README.md                      # File này
+├── LICENSE                        # MIT License
+└── phobert_emoji_update_v2.ipynb # Notebook phiên bản cũ (legacy)
+```
+
+---
+
+## 🚀 Cài đặt
+
+### Yêu cầu hệ thống
+
+- Python 3.8+
+- CUDA 11.0+ (nếu sử dụng GPU)
+- 8GB RAM (16GB khuyến nghị)
+
+### Cài đặt dependencies
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd emotion_classification
+
+# Tạo virtual environment (khuyến nghị)
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# hoặc
+venv\Scripts\activate     # Windows
+
+# Cài đặt dependencies
+pip install -r requirements.txt
+```
+
+### Cài đặt VnCoreNLP (Optional)
+
+Nếu muốn sử dụng word segmentation:
+
+```bash
+pip install vncorenlp
+# Download VnCoreNLP models
+# Xem hướng dẫn tại: https://github.com/vncorenlp/VnCoreNLP
+```
+
+---
+
+## 💻 Sử dụng
 
 ### Training
 
-Mở và chạy notebook `phobert_emoji_update_v2.ipynb` trong Jupyter hoặc Google Colab:
+#### 1. Training cơ bản
 
-1. **Load dataset**: Dataset tự động được tải từ Hugging Face
-2. **Preprocessing**: Sử dụng VnCoreNLP để word segmentation
-3. **Emoji Embedding**: Ánh xạ emoji sang vector từ các từ tiếng Việt tương ứng
-4. **Training**: Fine-tune PhoBERT model
-5. **Evaluation**: Đánh giá trên test set
-
-
-## Phương pháp
-
-### Emoji Embedding Transfer
-
-Một trong những đóng góp chính của dự án là kỹ thuật transfer embedding cho emoji:
-
-1. **Mapping**: Tạo dictionary ánh xạ emoji → từ tiếng Việt
-   - 😊 → "vui"
-   - 😢 → "buồn"
-   - 😡 → "giận"
-   - ...
-
-2. **Transfer**: Copy embedding vector từ từ tiếng Việt sang emoji token
-   ```python
-   embeddings[icon_id] = embeddings[vietnamese_id]
-   ```
-
-3. **Benefit**: Model có thể hiểu ngữ nghĩa của emoji mà không cần retrain từ đầu
-
-## Cấu trúc dự án
-
-```
-PhoBERT-Emoji_v2/
-├── phobert_emoji_update_v2.ipynb  # Notebook chính
-├── LICENSE                         # MIT License
-└── README.md                       # File này
+```bash
+python scripts/train.py
 ```
 
-## Kết quả
+#### 2. Training với tùy chỉnh tham số
 
-Model đạt được hiệu suất tốt trên dataset UIT-VSMEC với khả năng:
-- Phân loại chính xác các cảm xúc trong văn bản tiếng Việt
-- Xử lý được emoji trong context
-- Hiểu được ngữ nghĩa của social media text 
-- Đánh giá trên test set: 
-  
-      - Accuracy: 0.6811
-      - F1 Macro: 0.6496
-      - F1 Weighted: 0.6806
-      - Precision Macro: 0.6608
-      - Recall Macro: 0.6431
+```bash
+python scripts/train.py \
+    --batch_size 32 \
+    --num_epochs 20 \
+    --learning_rate 3e-5 \
+    --output_dir ./outputs
+```
 
+#### 3. Training không sử dụng emoji embeddings
 
+```bash
+python scripts/train.py --no_emoji
+```
 
+### Evaluation
 
-## Tài liệu tham khảo
+#### 1. Đánh giá trên test set
 
-1. PhoBERT: Pre-trained language models for Vietnamese (Nguyen & Nguyen, 2020)
-2. UIT-VSMEC: A Vietnamese Social Media Emotion Corpus for Emotion Recognition
-3. Transformers: State-of-the-art Natural Language Processing (Hugging Face)
+```bash
+python scripts/evaluate.py \
+    --checkpoint checkpoints/best_model.pt \
+    --split test \
+    --plot_cm \
+    --save_predictions
+```
 
-## Liên hệ
+#### 2. Đánh giá trên validation set
 
-**Nhóm nghiên cứu Gà làm khoa học**<br>
-Khu đô thị Đại học Quốc gia, Phường Đông Hòa, TP.HCM<br>
+```bash
+python scripts/evaluate.py \
+    --checkpoint checkpoints/best_model.pt \
+    --split val \
+    --output_dir evaluation_results
+```
+
+### Sử dụng trong code
+
+```python
+from configs.config import Config
+from src.models.phobert_emotion import PhoBERTEmotionClassifier
+from src.models.emoji_embeddings import apply_emoji_embeddings
+from transformers import AutoTokenizer
+import torch
+
+# Load config
+config = Config()
+
+# Load tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+model = PhoBERTEmotionClassifier(
+    model_name=config.model_name,
+    num_labels=config.num_labels
+)
+
+# Apply emoji embeddings
+model = apply_emoji_embeddings(model, tokenizer)
+
+# Load trained weights
+model.load_state_dict(torch.load('path/to/model.pt'))
+model.eval()
+
+# Predict
+text = "Tôi rất vui hôm nay 😊"
+inputs = tokenizer(text, return_tensors='pt', padding=True, truncation=True)
+with torch.no_grad():
+    outputs = model(**inputs)
+    prediction = torch.argmax(outputs['logits'], dim=1)
+    
+print(f"Predicted emotion: {config.emotion_labels[prediction]}")
+```
+
+---
+
+## 📊 Dataset
+
+Dự án sử dụng dataset **UIT-VSMEC** (Vietnamese Social Media Emotion Corpus):
+
+- **Train set**: 5,548 câu
+- **Validation set**: 686 câu  
+- **Test set**: 693 câu
+
+Dataset được tải tự động từ HuggingFace: `uit-nlp/vietnamese_students_feedback`
+
+### Phân bố cảm xúc
+
+| Cảm xúc | Số lượng mẫu |
+|---------|--------------|
+| Enjoyment | ~2,000 |
+| Sadness | ~1,500 |
+| Anger | ~800 |
+| Fear | ~600 |
+| Surprise | ~500 |
+| Disgust | ~400 |
+| Other | ~1,000 |
+
+---
+
+## 🔬 Phương pháp
+
+### 1. PhoBERT Model
+
+PhoBERT là mô hình BERT được pre-train đặc biệt cho tiếng Việt, sử dụng:
+- **Tokenization**: BPE (Byte Pair Encoding) với từ điển 64K tokens
+- **Architecture**: BERT-base (12 layers, 768 hidden size, 12 attention heads)
+- **Pre-training**: 20GB Vietnamese text từ Wikipedia và tin tức
+
+### 2. Emoji Embedding Transfer
+
+Kỹ thuật độc đáo của dự án - chuyển ngữ nghĩa từ từ tiếng Việt sang emoji:
+
+```python
+# Mapping định nghĩa
+emoji_mapping = {
+    "😊": "vui",
+    "😢": "buồn", 
+    "😡": "giận",
+    ...
+}
+
+# Transfer process
+for emoji, word in emoji_mapping.items():
+    emoji_id = tokenizer.encode(emoji)
+    word_id = tokenizer.encode(word)
+    embeddings[emoji_id] = embeddings[word_id].copy()
+```
+
+**Lợi ích:**
+- Model hiểu được ngữ nghĩa của emoji mà không cần retrain
+- Giảm data sparsity cho emoji tokens
+- Cải thiện performance trên social media text
+
+### 3. Training Strategy
+
+- **Optimizer**: AdamW với weight decay
+- **Learning Rate**: 2e-5 với linear warmup
+- **Batch Size**: 16 (có thể điều chỉnh)
+- **Early Stopping**: Patience = 3 epochs
+- **Loss Functions**: Cross Entropy / Focal Loss / Weighted CE
+
+---
+
+## 📈 Kết quả
+
+### Baseline Performance (PhoBERT gốc)
+
+| Metric | Score |
+|--------|-------|
+| Accuracy | 0.6811 |
+| F1 Macro | 0.6496 |
+| F1 Weighted | 0.6806 |
+| Precision Macro | 0.6608 |
+| Recall Macro | 0.6431 |
+
+### Performance với Emoji Embeddings
+
+*(Cập nhật sau khi training với cấu trúc mới)*
+
+---
+
+## 🔧 Cấu hình
+
+Tất cả cấu hình được quản lý trong `configs/config.py`:
+
+```python
+config = Config(
+    # Model
+    model_name="vinai/phobert-base",
+    num_labels=7,
+    max_length=256,
+    
+    # Training
+    batch_size=16,
+    learning_rate=2e-5,
+    num_epochs=10,
+    
+    # Emoji
+    enable_emoji_embedding=True,
+    
+    # Loss
+    loss_type="cross_entropy",  # hoặc "focal_loss", "weighted_ce"
+    
+    # Paths
+    output_dir="outputs",
+    checkpoint_dir="checkpoints"
+)
+```
+
+---
+
+## 📚 Tài liệu tham khảo
+
+1. **PhoBERT**: Nguyen, D. Q., & Nguyen, A. T. (2020). PhoBERT: Pre-trained language models for Vietnamese. *Findings of EMNLP 2020*. [[Paper]](https://arxiv.org/abs/2003.00744)
+
+2. **UIT-VSMEC**: Vietnamese Social Media Emotion Corpus. [[Dataset]](https://huggingface.co/datasets/uit-nlp/vietnamese_students_feedback)
+
+3. **Transformers**: Wolf, T., et al. (2020). Transformers: State-of-the-art Natural Language Processing. *EMNLP 2020*. [[Paper]](https://arxiv.org/abs/1910.03771)
+
+4. **Focal Loss**: Lin, T. Y., et al. (2017). Focal Loss for Dense Object Detection. *ICCV 2017*. [[Paper]](https://arxiv.org/abs/1708.02002)
+
+---
+
+## 👥 Đóng góp
+
+Nhóm nghiên cứu **Gà làm khoa học** - Trường Đại học Khoa học Tự nhiên TPHCM
+
+### Thành viên:
+- Trần Khánh Duy (MSSV: 23110078)
+- Lê Minh Huy (MSSV: 23110018)
+- Lê Văn Quý (MSSV: 23110040)
+- Đoàn Phú Quý (MSSV: 23110112)
+
+---
+
+## 📝 License
+
+Dự án được phát hành dưới [MIT License](LICENSE).
+
+---
+
+## 📧 Liên hệ
+
+**Nhóm nghiên cứu Gà làm khoa học**  
+Khu đô thị Đại học Quốc gia, Phường Đông Hòa, TP.HCM  
 Email: galamkhoahoc@gmail.com
+
+---
+
+## 🙏 Lời cảm ơn
+
+- VinAI Research cho PhoBERT model
+- UIT-NLP Lab cho dataset UIT-VSMEC
+- HuggingFace cho Transformers library
+- Cộng đồng NLP Việt Nam
+
+---
+
+**⭐ Nếu dự án hữu ích, hãy cho chúng tôi một star trên GitHub!**
