@@ -97,8 +97,10 @@ def create_model(config, loss_fn: Optional[nn.Module] = None) -> Tuple[BaseEmoti
     
     try:
         # Load tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-        logger.info(f"Loaded tokenizer from {config.model_name}")
+        # For BamiBERT, use slow tokenizer to avoid compatibility issues
+        use_fast = model_type != "bamibert"
+        tokenizer = AutoTokenizer.from_pretrained(config.model_name, use_fast=use_fast)
+        logger.info(f"Loaded tokenizer from {config.model_name} (use_fast={use_fast})")
         
         # Create model based on type
         if model_type == "phobert":
